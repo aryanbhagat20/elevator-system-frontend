@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { playSound } from "./utils/sounds";
 
@@ -42,10 +43,11 @@ function App() {
     let stompClient;
 
     try {
-      stompClient = new Client({
-        brokerURL: "wss://elevator-system-go4e.onrender.com/ws",
-        reconnectDelay: 5000,
+      const socket = new SockJS("https://elevator-system-qo4e.onrender.com/ws");
 
+      stompClient = new Client({
+        webSocketFactory: () => socket,
+        reconnectDelay: 5000,
         onConnect: () => {
           console.log("✅ Connected to WebSocket");
           setConnected(true);
@@ -54,11 +56,13 @@ function App() {
             try {
               const data = JSON.parse(message.body);
 
+              // Play sounds on state changes
               setElevators((prevElevators) => {
                 data.forEach((newElev, index) => {
                   const oldElev = prevElevators[index];
 
                   if (oldElev) {
+                    // Ding when elevator arrives
                     if (
                       oldElev.movementState !== "IDLE" &&
                       newElev.movementState === "IDLE"
@@ -66,6 +70,7 @@ function App() {
                       playSound("ding");
                     }
 
+                    // Door sounds
                     if (oldElev.doorState !== newElev.doorState) {
                       if (newElev.doorState === "OPEN") {
                         playSound("doorOpen");
@@ -76,21 +81,27 @@ function App() {
                   }
                 });
 
-                return data;
+                // Turn off floor lights when arrived
+                data.forEach((newElev) => {
+                  if (newElev.movementState === "IDLE") {
+                    setRequestedFloors((prev) =>
+                      prev.filter((floor) => floor !== newElev.currentFloor),
+                    );
+                  }
+                });
+
+                return data; // Return the new elevator data
               });
             } catch (e) {
               console.error("Error parsing message:", e);
             }
           });
         },
-
-        onWebSocketClose: () => {
-          console.log("❌ WebSocket closed");
-          setConnected(false);
-        },
-
         onStompError: (frame) => {
           console.error("STOMP error:", frame);
+          setConnected(false);
+        },
+        onWebSocketClose: () => {
           setConnected(false);
         },
       });
@@ -176,7 +187,7 @@ function App() {
     if (confirm("🚨 Activate FIRE EMERGENCY for all elevators?")) {
       elevators.forEach((e) => {
         fetch(
-          `https://elevator-system-go4e.onrender.com/api/elevator/emergency?elevatorId=${e.elevatorId}`,
+          `https://elevator-system-qo4e.onrender.com/api/elevator/emergency?elevatorId=${e.elevatorId}`,
           {
             method: "POST",
           },
@@ -195,7 +206,7 @@ function App() {
     }
 
     fetch(
-      `https://elevator-system-go4e.onrender.com/api/elevator/emergency?elevatorId=${elevatorId}`,
+      `https://elevator-system-qo4e.onrender.com/api/elevator/emergency?elevatorId=${elevatorId}`,
       {
         method: "POST",
       },
@@ -214,7 +225,7 @@ function App() {
     }
 
     fetch(
-      `https://elevator-system-go4e.onrender.com/api/elevator/clearEmergency?elevatorId=${elevatorId}`,
+      `https://elevator-system-qo4e.onrender.com/api/elevator/clearEmergency?elevatorId=${elevatorId}`,
       {
         method: "POST",
       },
@@ -233,7 +244,7 @@ function App() {
     }
 
     fetch(
-      `https://elevator-system-go4e.onrender.com/api/elevator/maintenance?elevatorId=${elevatorId}&enable=${enable}`,
+      `https://elevator-system-qo4e.onrender.com/api/elevator/maintenance?elevatorId=${elevatorId}&enable=${enable}`,
       {
         method: "POST",
       },
