@@ -57,68 +57,41 @@ function App() {
               const data = JSON.parse(message.body);
 
               // Play sounds on state changes
-              data.forEach((newElev, index) => {
-                stompClient.subscribe("/topic/elevators", (message) => {
-                  const data = JSON.parse(message.body);
+              setElevators((prevElevators) => {
+                data.forEach((newElev, index) => {
+                  const oldElev = prevElevators[index];
 
-                  setElevators((prevElevators) => {
-                    data.forEach((newElev, index) => {
-                      const oldElev = prevElevators[index];
+                  if (oldElev) {
+                    // Ding when elevator arrives
+                    if (
+                      oldElev.movementState !== "IDLE" &&
+                      newElev.movementState === "IDLE"
+                    ) {
+                      playSound("ding");
+                    }
 
-                      if (oldElev) {
-                        if (
-                          oldElev.movementState !== "IDLE" &&
-                          newElev.movementState === "IDLE"
-                        ) {
-                          playSound("ding");
-                        }
-
-
-                        if (oldElev.doorState !== newElev.doorState) {
-                          if (newElev.doorState === "OPEN") {
-                            playSound("doorOpen");
-                          } else if (newElev.doorState === "CLOSED") {
-                            playSound("doorClose");
-                          }
-                        }
+                    // Door sounds
+                    if (oldElev.doorState !== newElev.doorState) {
+                      if (newElev.doorState === "OPEN") {
+                        playSound("doorOpen");
+                      } else if (newElev.doorState === "CLOSED") {
+                        playSound("doorClose");
                       }
-                    });
-
-                    // 🔵 TURN OFF FLOOR LIGHT WHEN ARRIVED
-data.forEach(newElev => {
-   if (newElev.movementState === "IDLE") {
-      setRequestedFloors(prev =>
-         prev.filter(floor => floor !== newElev.currentFloor)
-      );
-   }
-});
-
-
-                    return data;
-                  });
-                });
-
-                if (oldElev) {
-                  // Ding when elevator arrives
-                  if (
-                    oldElev.movementState !== "IDLE" &&
-                    newElev.movementState === "IDLE"
-                  ) {
-                    playSound("ding");
-                  }
-
-                  // Door sounds
-                  if (oldElev.doorState !== newElev.doorState) {
-                    if (newElev.doorState === "OPEN") {
-                      playSound("doorOpen");
-                    } else if (newElev.doorState === "CLOSED") {
-                      playSound("doorClose");
                     }
                   }
-                }
-              });
+                });
 
-              setElevators(data);
+                // Turn off floor lights when arrived
+                data.forEach((newElev) => {
+                  if (newElev.movementState === "IDLE") {
+                    setRequestedFloors((prev) =>
+                      prev.filter((floor) => floor !== newElev.currentFloor),
+                    );
+                  }
+                });
+
+                return data; // Return the new elevator data
+              });
             } catch (e) {
               console.error("Error parsing message:", e);
             }
@@ -246,20 +219,22 @@ data.forEach(newElev => {
   };
 
   const clearEmergency = (elevatorId) => {
-  if (!connected) {
-    alert("⚠️ Backend not connected!");
-    return;
-  }
+    if (!connected) {
+      alert("⚠️ Backend not connected!");
+      return;
+    }
 
-  fetch(`https://elevator-system-go4e.onrender.com/api/elevator/clearEmergency?elevatorId=${elevatorId}`, {
-    method: 'POST'
-  })
-  .then(() => {
-    console.log(`✅ Emergency cleared for Elevator ${elevatorId}`);
-  })
-  .catch(err => console.error("Clear emergency failed:", err));
-};
-
+    fetch(
+      `https://elevator-system-go4e.onrender.com/api/elevator/clearEmergency?elevatorId=${elevatorId}`,
+      {
+        method: "POST",
+      },
+    )
+      .then(() => {
+        console.log(`✅ Emergency cleared for Elevator ${elevatorId}`);
+      })
+      .catch((err) => console.error("Clear emergency failed:", err));
+  };
 
   // Maintenance toggle
   const toggleMaintenance = (elevatorId, enable) => {
@@ -458,12 +433,12 @@ data.forEach(newElev => {
                     </button>
 
                     <button
-    onClick={() => clearEmergency(elevator.elevatorId)}
-    disabled={!connected || elevator.mode !== "EMERGENCY"}
-    className="reset-btn"
-  >
-    ✅ Reset Emergency
-  </button>
+                      onClick={() => clearEmergency(elevator.elevatorId)}
+                      disabled={!connected || elevator.mode !== "EMERGENCY"}
+                      className="reset-btn"
+                    >
+                      ✅ Reset Emergency
+                    </button>
 
                     <div className="maintenance-toggle">
                       <span className="toggle-label">Maintenance:</span>
@@ -493,38 +468,39 @@ data.forEach(newElev => {
         )}
 
         {/* 🏢 LOBBY DISPLAY SCREEN */}
-<div className="lobby-display">
-  <h2 className="lobby-title">LOBBY STATUS BOARD</h2>
+        <div className="lobby-display">
+          <h2 className="lobby-title">LOBBY STATUS BOARD</h2>
 
-  <div className="lobby-grid">
-    {elevators.map((elevator) => (
-      <div key={elevator.elevatorId} className="lobby-card">
+          <div className="lobby-grid">
+            {elevators.map((elevator) => (
+              <div key={elevator.elevatorId} className="lobby-card">
+                <div className="lobby-elevator-label">
+                  🛗 Elevator {elevator.elevatorId}
+                </div>
 
-        <div className="lobby-elevator-label">
-          🛗 Elevator {elevator.elevatorId}
+                <div className="lobby-floor-display">
+                  <span className="digital-floor">
+                    {elevator.currentFloor.toString().padStart(2, "0")}
+                  </span>
+
+                  <span className="direction-indicator">
+                    {elevator.movementState === "MOVING_UP" && "⬆"}
+                    {elevator.movementState === "MOVING_DOWN" && "⬇"}
+                    {elevator.movementState === "IDLE" && "•"}
+                  </span>
+                </div>
+
+                <div
+                  className={`door-status ${elevator.doorState?.toLowerCase()}`}
+                >
+                  {elevator.doorState === "OPEN"
+                    ? "Doors Open"
+                    : "Doors Closed"}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-
-        <div className="lobby-floor-display">
-          <span className="digital-floor">
-            {elevator.currentFloor.toString().padStart(2, "0")}
-          </span>
-
-          <span className="direction-indicator">
-            {elevator.movementState === "MOVING_UP" && "⬆"}
-            {elevator.movementState === "MOVING_DOWN" && "⬇"}
-            {elevator.movementState === "IDLE" && "•"}
-          </span>
-        </div>
-
-        <div className={`door-status ${elevator.doorState?.toLowerCase()}`}>
-          {elevator.doorState === "OPEN" ? "Doors Open" : "Doors Closed"}
-        </div>
-
-      </div>
-    ))}
-  </div>
-</div>
-
 
         {/* Main Content */}
         <div className="main-grid">
@@ -691,11 +667,13 @@ data.forEach(newElev => {
 
                       return (
                         <div
-   key={floor}
-   className={`floor-row ${
-      requestedFloors.includes(floor) ? "floor-active" : ""
-   }`}
->
+                          key={floor}
+                          className={`floor-row ${
+                            requestedFloors.includes(floor)
+                              ? "floor-active"
+                              : ""
+                          }`}
+                        >
                           <div className="floor-indicator">
                             <span className="floor-num">{floor}</span>
                           </div>
