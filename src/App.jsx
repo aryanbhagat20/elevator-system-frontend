@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from "react";
-import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { playSound } from "./utils/sounds";
 
@@ -43,11 +42,10 @@ function App() {
     let stompClient;
 
     try {
-      const socket = new SockJS("https://elevator-system-go4e.onrender.com/ws");
-
       stompClient = new Client({
-        webSocketFactory: () => socket,
+        brokerURL: "wss://elevator-system-go4e.onrender.com/ws",
         reconnectDelay: 5000,
+
         onConnect: () => {
           console.log("✅ Connected to WebSocket");
           setConnected(true);
@@ -56,13 +54,11 @@ function App() {
             try {
               const data = JSON.parse(message.body);
 
-              // Play sounds on state changes
               setElevators((prevElevators) => {
                 data.forEach((newElev, index) => {
                   const oldElev = prevElevators[index];
 
                   if (oldElev) {
-                    // Ding when elevator arrives
                     if (
                       oldElev.movementState !== "IDLE" &&
                       newElev.movementState === "IDLE"
@@ -70,7 +66,6 @@ function App() {
                       playSound("ding");
                     }
 
-                    // Door sounds
                     if (oldElev.doorState !== newElev.doorState) {
                       if (newElev.doorState === "OPEN") {
                         playSound("doorOpen");
@@ -81,27 +76,21 @@ function App() {
                   }
                 });
 
-                // Turn off floor lights when arrived
-                data.forEach((newElev) => {
-                  if (newElev.movementState === "IDLE") {
-                    setRequestedFloors((prev) =>
-                      prev.filter((floor) => floor !== newElev.currentFloor),
-                    );
-                  }
-                });
-
-                return data; // Return the new elevator data
+                return data;
               });
             } catch (e) {
               console.error("Error parsing message:", e);
             }
           });
         },
-        onStompError: (frame) => {
-          console.error("STOMP error:", frame);
+
+        onWebSocketClose: () => {
+          console.log("❌ WebSocket closed");
           setConnected(false);
         },
-        onWebSocketClose: () => {
+
+        onStompError: (frame) => {
+          console.error("STOMP error:", frame);
           setConnected(false);
         },
       });
