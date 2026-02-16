@@ -31,6 +31,18 @@ function App() {
   const [showAdmin, setShowAdmin] = useState(false);
   const stompClientRef = useRef(null);
   const [time, setTime] = useState(new Date());
+  const [bootDots, setBootDots] = useState(".");
+
+  // Boot animation for WebSocket connection
+  useEffect(() => {
+    if (!connected) {
+      const interval = setInterval(() => {
+        setBootDots((prev) => (prev.length >= 3 ? "." : prev + "."));
+      }, 500);
+
+      return () => clearInterval(interval);
+    }
+  }, [connected]);
 
   // Time update
   useEffect(() => {
@@ -341,10 +353,13 @@ function App() {
 
         {!connected && (
           <div className="demo-banner">
-            <div className="demo-icon">⚠️</div>
+            <div className="demo-icon">⚡</div>
             <div className="demo-text">
-              <strong>Backend Not Connected</strong>
-              <span>Start your Spring Boot backend on port 8080</span>
+              <strong>Bringing Elevators Online{bootDots}</strong>
+              <span>
+                Initializing real-time engine. Free-tier cold start may take 1 –
+                2 minutes.
+              </span>
             </div>
           </div>
         )}
@@ -511,21 +526,21 @@ function App() {
                 className={`tab ${activePanel === "call" ? "active" : ""}`}
                 onClick={() => setActivePanel("call")}
               >
-                Call Elevator
+                Lobby Panel
               </button>
               <button
                 className={`tab ${activePanel === "direct" ? "active" : ""}`}
                 onClick={() => setActivePanel("direct")}
               >
-                Direct Control
+                Cabin Panel
               </button>
             </div>
 
             {activePanel === "call" ? (
               <div className="panel-content">
-                <h2 className="panel-title">Call Elevator</h2>
+                <h2 className="panel-title">Lobby Panel</h2>
                 <p className="panel-description">
-                  Select your floor and direction
+                  Select floor and direction (External Floor Call)
                 </p>
 
                 <div className="floor-grid">
@@ -589,9 +604,9 @@ function App() {
               </div>
             ) : (
               <div className="panel-content">
-                <h2 className="panel-title">Direct Control</h2>
+                <h2 className="panel-title">Cabin Panel</h2>
                 <p className="panel-description">
-                  Send specific elevator to any floor
+                  Control elevator from inside cabin
                 </p>
 
                 {elevators.map((elevator) => (

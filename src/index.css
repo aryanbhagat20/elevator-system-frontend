@@ -1409,3 +1409,15 @@ input:disabled + .slider {
   box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
 }
 
+.demo-text strong {
+  color: #f5c542;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+
